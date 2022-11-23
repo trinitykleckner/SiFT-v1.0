@@ -1,5 +1,5 @@
 #python3
-
+from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from siftmtp import SiFT_MTP, SiFT_MTP_Error
 
@@ -40,8 +40,21 @@ class SiFT_UPL:
 
     # uploads file at filepath in fragments to the server (to be used by the client)
     def handle_upload_client(self, filepath):
-
-        # TODO: implement this function!
+        # 1. Compute size of uploaded file
+        # 2. Compute hash of uploaded file
+        # 3. Split file into chunks
+        # 3.5 Encrypt chunks
+        # 4. Upload chunks
+        
+        file = open(filepath, 'rb')
+        byte_count = self.size_fragment
+        while byte_count == self.size_fragment:
+            chunk = f.read(self.size_fragment)
+            
+            
+            
+            byte_count = len(chunk)
+            
 
 
 

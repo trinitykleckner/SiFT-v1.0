@@ -125,6 +125,7 @@ class SiFTShell(cmd.Cmd):
             except SiFT_CMD_Error as e:
                 print('SiFT_CMD_Error: ' + e.err_msg)
             else:
+                # If the client rejects the connection
                 if cmd_res_struct['result_1'] == cmdp.res_reject:
                     print('Remote_Error: ' + cmd_res_struct['result_2'])
                 else:
@@ -138,6 +139,13 @@ class SiFTShell(cmd.Cmd):
                     #   - handle potential errors as needed
 
                     # print('Completed.')
+                    
+                    # Dunno where the hell mtp is
+                    instance = SiFT_UPL(mtp)
+                    instance.handle_upload_client()
+                    
+                    #example_upload_res = example.build_upload_res(cmd_res_struct)
+                    #parse_upload_res(example_upload_res)
 
     def do_dnl(self, arg):
         'Download the given file from the server: dnl <filename>'
