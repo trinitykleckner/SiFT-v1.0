@@ -45,22 +45,23 @@ class SiFT_UPL:
         # 3. Split file into chunks
         # 3.5 Encrypt chunks
         # 4. Upload chunks
-        
+
         file = open(filepath, 'rb')
         byte_count = self.size_fragment
-        while byte_count == self.size_fragment:
+        msg_sqn = 0
+        while byte_count == self.size_fragment: #what happens when message is exact len
             chunk = f.read(self.size_fragment)
-            
-            
-            
             byte_count = len(chunk)
+            if byte_count == self.size_fragment:
+                msg_type = self.mtp.type_upload_req_0
+            else:
+                msg_type = self.mtp.type_upload_req_1
+            self.mtp.send_msg(msg_type, msg_sqn, chunk)
+            msg_sqn += 1
+
             
-
-
 
     # handles a file upload on the server (to be used by the server)
     def handle_upload_server(self, filepath):
 
         # TODO: implement this function!
-
-
