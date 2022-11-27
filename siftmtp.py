@@ -2,6 +2,7 @@
 
 import Crypto.Random
 import socket
+from Crypto.Cipher import AES
 
 class SiFT_MTP_Error(Exception):
 
@@ -9,11 +10,11 @@ class SiFT_MTP_Error(Exception):
         self.err_msg = err_msg
 
 class SiFT_MTP:
-	def __init__(self, peer_socket):
+	def __init__(self, peer_socket, enc_key):
 
 		self.DEBUG = True
 		# --------- CONSTANTS ------------
-		self.version_major = 1
+        self.version_major = 1
 		self.version_minor = 0
         self.msg_hdr_rsv = b'\x00\x00'
 		self.msg_hdr_ver = b'\x01\x00'
@@ -40,6 +41,7 @@ class SiFT_MTP:
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
+        self.key = enc_key
 
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -128,10 +130,12 @@ class SiFT_MTP:
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
         msg_hdr_rnd = get_random_bytes(self.size_msg_hdr_rnd)
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + self.msg_hrd_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
 
-        #1. encrypt payload
-        #2. compute MAC
+        # encrypt payload and compute mac
+        cipher = AES.new(self.key, AES.MODE_GCM, nonce=msg_sqn+msg_hdr_rnd, mac_len=12)
+        cipher.update(msg_hdr)
+        encrypted_msg_payload, mac = cipher.encrypt_and_digest(msg_payload)
 
 		# DEBUG
 		if self.DEBUG:
