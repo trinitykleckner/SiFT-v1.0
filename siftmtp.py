@@ -10,12 +10,13 @@ class SiFT_MTP_Error(Exception):
         self.err_msg = err_msg
 
 class SiFT_MTP:
-	def __init__(self, peer_socket, enc_key):
+	def __init__(self, peer_socket, aes_key):
 
 		self.DEBUG = True
 		# --------- CONSTANTS ------------
         self.version_major = 1
 		self.version_minor = 0
+        self.mac_len = 12
         self.msg_hdr_rsv = b'\x00\x00'
 		self.msg_hdr_ver = b'\x01\x00'
 		self.size_msg_hdr = 16
@@ -41,7 +42,9 @@ class SiFT_MTP:
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
-        self.key = enc_key
+        self.msg_sqn = 0
+
+        self.aes_key = None
 
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -77,6 +80,7 @@ class SiFT_MTP:
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
 
+        #checking the header
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
@@ -93,12 +97,32 @@ class SiFT_MTP:
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
 
+        thissqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder='big')
+        if thissqn <= self.msg_sqn:
+            raise SiFT_MTP_Error("Error: Message sequence number is too old!")
+
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+
+        if len(msg_body) != msg_len - self.size_msg_hdr:
+            raise SiFT_MTP_Error('Incomplete message body reveived')
+
+        nonce = self.msg_sqn + self.msg_hdr_rsv
+        AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+        AE.update(msg_hdr)
+
+        encrypted_msg_payload = msg_body[0:self.mac_len]
+        mac = msg_body[self.mac_len:-1]
+
+        try:
+            payload = AE.decrypt_and_verify(encrypted_msg_payload, mac)
+        except SiFT_MTP_Error as e:
+            raise SiFT_MTP_Error('MAC verification failed' + e.err_msg)
+
 
 		# DEBUG
 		if self.DEBUG:
@@ -109,10 +133,7 @@ class SiFT_MTP:
 			print('------------------------------------------')
 		# DEBUG
 
-		if len(msg_body) != msg_len - self.size_msg_hdr:
-			raise SiFT_MTP_Error('Incomplete message body reveived')
-
-		return parsed_msg_hdr['typ'], msg_body
+		return parsed_msg_hdr['typ'], payload
 
 
 	# sends all bytes provided via the peer socket
@@ -133,9 +154,10 @@ class SiFT_MTP:
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
 
         # encrypt payload and compute mac
-        cipher = AES.new(self.key, AES.MODE_GCM, nonce=msg_sqn+msg_hdr_rnd, mac_len=12)
-        cipher.update(msg_hdr)
-        encrypted_msg_payload, mac = cipher.encrypt_and_digest(msg_payload)
+        nonce = self.msg_sqn + self.msg_hdr_rnd
+        AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+        AE.update(msg_hdr)
+        encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
 
 		# DEBUG
 		if self.DEBUG:
