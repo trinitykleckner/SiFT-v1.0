@@ -482,6 +482,18 @@ class SiFT_CMD:
 
         # dnl
         elif cmd_req_struct['command'] == self.cmd_dnl:
+            # DONE i think
+            # TODO: Implement the handling of the dnl command here...
+            # HINTS:
+            #   - take the filename from the command parameter field param_1
+            #   - check that the filename is not empty, does not start with . and does not
+            #     contain unsupported characters (use self.check_fdname())
+            #   - check that the filename actually refers to an existing file (and not a directory)
+            #   - compute the SHA-256 hash of the file content and determine the size of the file (in bytes)
+            #     (for the hashing, open the file, read its content, and hash it)
+            #   - if all checks were successful, then fill in the fields of the response structure
+            #     with the size and the hash, and respond with 'accept'
+            #   - otherwise the response should be 'reject' with an appropriate error message
 
             filename = cmd_req_struct['param_1']
             if not self.check_fdname(filename):
@@ -495,24 +507,20 @@ class SiFT_CMD:
                     cmd_res_struct['result_1'] = self.res_reject
                     cmd_res_struct['result_2'] = 'File or directory does not exist'
                 else:
-                    pass
-                    #step 5
+                    hash_fn = SHA256.new()
+                    file = open(path, "rb")
+                    byte_count = 1024
+                    filesize = 0
+                    while bytes_count == 1024:
+                        chunk = f.read(1024)
+                        byte_count = len(chunk)
+                        filesize += byte_count
+                        hash_fn.update(chunk)
+                    filehash = hash_fn.digest()
+                    cmd_res_struct['result_1'] = self.res_accept
+                    cmd_res_struct['result_1'] = filesize
+                    cmd_res_struct['result_1'] = filehash
 
-
-            cmd_res_struct['result_1'] = self.res_reject
-            cmd_res_struct['result_2'] = 'Download is not yet supported'
-
-            # TODO: Implement the handling of the dnl command here...
-            # HINTS:
-            #   - take the filename from the command parameter field param_1
-            #   - check that the filename is not empty, does not start with . and does not
-            #     contain unsupported characters (use self.check_fdname())
-            #   - check that the filename actually refers to an existing file (and not a directory)
-            #   - compute the SHA-256 hash of the file content and determine the size of the file (in bytes)
-            #     (for the hashing, open the file, read its content, and hash it)
-            #   - if all checks were successful, then fill in the fields of the response structure
-            #     with the size and the hash, and respond with 'accept'
-            #   - otherwise the response should be 'reject' with an appropriate error message
 
         return cmd_res_struct
 
