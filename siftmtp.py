@@ -77,7 +77,7 @@ class SiFT_MTP:
 			bytes_received += chunk
 			bytes_count += len(chunk)
 		return bytes_received
-    
+
 
 	# sends all bytes provided via the peer socket
 	def send_bytes(self, bytes_to_send):
@@ -85,8 +85,8 @@ class SiFT_MTP:
 			self.peer_socket.sendall(bytes_to_send)
 		except:
 			raise SiFT_MTP_Error('Unable to send via peer socket')
-    
-    
+
+
     # -----------------------------------------------------------------------------------------
     # MTP protocol for sending/recieving ordinary messages (NOT login requests/responses)
     # -----------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ class SiFT_MTP:
             raise SiFT_MTP_Error("Error: Message sequence number is too old!")
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
-        
+
         # receive the bytes of the (encrypted) payload and the mac
 		try:
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
@@ -131,10 +131,11 @@ class SiFT_MTP:
         nonce = self.msg_sqn + self.msg_hdr_rsv
         AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
         AE.update(msg_hdr)
-        
+
         #TODO: Not sure if this sequencing is correct...check with @trinity
-        encrypted_msg_payload = msg_body[0:self.mac_len]
-        mac = msg_body[self.mac_len:-1]
+        mac_start_index = msg_len - self.size_msg_hdr
+        encrypted_msg_payload = msg_body[:mac_start_index]
+        mac = msg_body[mac_start_index:]
 
         try:
             payload = AE.decrypt_and_verify(encrypted_msg_payload, mac)
@@ -183,13 +184,13 @@ class SiFT_MTP:
 			self.send_bytes(msg_hdr + encrypted_msg_payload + mac)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-            
-            
+
+
     # -----------------------------------------------------------------------------------------
     # MTP protocol for sending/recieving login requests/responses
     # -----------------------------------------------------------------------------------------
-    
-    
+
+
 	# receives and parses login request, returns the message payload
 	def receive_login_req(self):
 
@@ -215,31 +216,31 @@ class SiFT_MTP:
             raise SiFT_MTP_Error("Error: Message sequence number is too old!")
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
-        
+
         # receive the bytes of the (encrypted) payload and the mac
 		try:
-			msg_body_and_mac = self.receive_bytes(msg_len - (self.size_msg_hdr + 256)) 
+			msg_body_and_mac = self.receive_bytes(msg_len - (self.size_msg_hdr + 256))
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
 
         if len(msg_body_and_mac) != msg_len - (self.size_msg_hdr + 256):
             raise SiFT_MTP_Error('Incomplete message body reveived')
-        
+
         encrypted_msg_payload = msg_body_and_mac[:-self.mac_len]
         msg_mac = msg_body_and_mac[-self.mac_len:]
-        
+
         # receive the RSA encrypted key
 		try:
-			enc_temp_key = self.receive_bytes(256) 
+			enc_temp_key = self.receive_bytes(256)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive RSA-encrypted key --> ' + e.err_msg)
 
         if len(enc_temp_key) != 256:
             raise SiFT_MTP_Error('Incomplete RSA-encrypted key reveived')
-            
+
         # decrypt RSA-encrypted key using server's private key
         aes_key = dec(enc_temp_key)
-        
+
         # check mac value of payload and decrypt
         nonce = self.msg_sqn + self.msg_hdr_rsv
         AE = AES.new(aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
@@ -272,7 +273,7 @@ class SiFT_MTP:
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
         msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
-        
+
         # generate temporary AES key for encryption of login message payload
         temp_login_req_key = Random.get_random_bytes(32)
 
@@ -281,7 +282,7 @@ class SiFT_MTP:
         AE = AES.new(temp_login_req_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
         AE.update(msg_hdr)
         encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
-        
+
         # encrypt temporary AES key
         enc_aes_key = enc_rsa(temp_login_req_key)
 
@@ -299,12 +300,12 @@ class SiFT_MTP:
 			self.send_bytes(msg_hdr + encrypted_msg_payload + mac + enc_aes_key)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-            
-            
+
+
     # -----------------------------------------------------------------------------------------
     # RSA Key Pair Generation for sending/recieving login requests/responses
     # -----------------------------------------------------------------------------------------
-    
+
     # loads the server's public key from the file `pubkey.pem` residing in the current directory
     def load_publickey():
         pubkeyfile = 'pubkey.pem'
@@ -328,7 +329,7 @@ class SiFT_MTP:
         except ValueError:
             print('Error: Cannot import private key from file ' + privkeyfile)
             sys.exit(1)
-    
+
     # encrypts and returns the temporary 32-byte AES key used for encrypting the login request using server's public key
     # TODO: Add try-catch blocks for if file is not in current directory
     def enc_rsa(self, temp_AES_key):
@@ -337,10 +338,10 @@ class SiFT_MTP:
         RSAcipher = PKCS1_OAEP.new(pubkey)
 
         # encrypt the AES key with the RSA cipher
-        encaeskey = RSAcipher.encrypt(temp_AES_key) 
-        
+        encaeskey = RSAcipher.encrypt(temp_AES_key)
+
         return encaeskey
-        
+
     # decrypts and returns the RSA-encrypted AES key sent as part of the client's login request using the server's private key
     # TODO: Add try-catch blocks for if file is not in current directory
     def dec_rsa(self, encaeskey):
@@ -350,7 +351,6 @@ class SiFT_MTP:
         RSAcipher = PKCS1_OAEP.new(keypair)
 
         # decrypt the AES key and create the AES cipher object
-        decaeskey = RSAcipher.decrypt(encsymkey)  
-        
-        return decaeskey
+        decaeskey = RSAcipher.decrypt(encsymkey)
 
+        return decaeskey
