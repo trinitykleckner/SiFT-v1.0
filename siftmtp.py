@@ -156,13 +156,13 @@ class SiFT_MTP:
 
 
 	# builds and sends message of a given type using the provided payload
-	def send_msg(self, msg_type, msg_sqn, msg_payload):
+	def send_msg(self, msg_type, msg_payload):
 
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload) + self.mac_len
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
         msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
 
         # encrypt payload and compute mac
         nonce = self.msg_sqn + self.msg_hdr_rnd
@@ -185,6 +185,7 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
+        self.msg_sqn += 1
 
     # -----------------------------------------------------------------------------------------
     # MTP protocol for sending/recieving login requests/responses
@@ -263,16 +264,16 @@ class SiFT_MTP:
 
 		return payload
 
-
+#######################################do we need to do something with the sqn here?
 	# builds and sends login requests
-	def send_login_req(self, msg_sqn, msg_payload):
+	def send_login_req(self, msg_payload):
 
 		# build message header
 		msg_size = self.size_msg_hdr + len(msg_payload) + self.mac_len + self.rsa_key_len
         msg_type = b'\x00\x00'                                                    # the message type for login requests
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
         msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hrd_rsv
 
         # generate temporary AES key for encryption of login message payload
         temp_login_req_key = Random.get_random_bytes(32)
@@ -301,6 +302,7 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
+        self.msg_sqn += 1
 
     # -----------------------------------------------------------------------------------------
     # RSA Key Pair Generation for sending/recieving login requests/responses
