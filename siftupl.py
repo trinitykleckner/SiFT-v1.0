@@ -48,7 +48,8 @@ class SiFT_UPL:
 
         file = open(filepath, 'rb')
         byte_count = self.size_fragment
-        msg_sqn = 0
+        hash_fn = SHA256.new()
+
         while byte_count == self.size_fragment: #what happens when message is exact len
             chunk = f.read(self.size_fragment)
             byte_count = len(chunk)
@@ -56,12 +57,56 @@ class SiFT_UPL:
                 msg_type = self.mtp.type_upload_req_0
             else:
                 msg_type = self.mtp.type_upload_req_1
-            self.mtp.send_msg(msg_type, msg_sqn, chunk)
-            msg_sqn += 1
 
-            
+            hash_fn.update(chunk)
+            try:
+                self.mtp.send_msg(msg_type, msg_sqn, chunk)
+            except:
+                raise SiFT_UPL_Error("Cannot upload file fragment")
+
+        #Document says "the client should also compute the size of the uploaded file and its SHA-256 hash value."
+        file_hash = hash_fn.digest()
+
+        #now try to recieve
+        try:
+            msg_type, msg_payload = self.mtp.receive_msg()
+        except SiFT_MTP_Error as e:
+            raise SiFT_UPL_Error("Could not recieve response")
+
+        if msg_type != self.mtp.type_upload_res:
+            raise SiFT_UPL_Error("Recieved message of wrong type")
+
+        upl_res = self.parse_upload_res(msg_payload)
+        if upl_res['file_hash'] != file_hash:
+            raise SiFT_UPL_Error('Hash verification failed')
+
 
     # handles a file upload on the server (to be used by the server)
     def handle_upload_server(self, filepath):
 
         # TODO: implement this function!
+        file = open(filepath, 'wb')
+        filesize = 0
+        msg_type = self.mtp.type_upload_req_0
+        hash_fn = SHA256.new()
+
+        while msg_type = self.mtp.type_upload_req_0:
+            try:
+                msg_type, msg_payload = self.mtp.receive_msg()
+            except:
+                raise SiFT_UPL_Error("Could not recieve upload")
+
+            hash_fn.update(msg_payload)
+            file.write(msg_payload)
+            filesize += len(msg_payload)
+
+        filehash = hash_fn.digest()
+        upl_res = {}
+        upl_res['file_hash'] = filehash
+        upl_res['file_size'] = filesize
+        msg = self.build_upload_res(upl_res)
+
+        try:
+            self.mtp.send_msg(self.mtp.type_upload_res, msg)
+        except:
+            raise SiFT_UPL_Error("Could not send response")

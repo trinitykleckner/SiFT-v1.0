@@ -518,8 +518,8 @@ class SiFT_CMD:
                         hash_fn.update(chunk)
                     filehash = hash_fn.digest()
                     cmd_res_struct['result_1'] = self.res_accept
-                    cmd_res_struct['result_1'] = filesize
-                    cmd_res_struct['result_1'] = filehash
+                    cmd_res_struct['result_2'] = filesize
+                    cmd_res_struct['result_3'] = filehash
 
 
         return cmd_res_struct
