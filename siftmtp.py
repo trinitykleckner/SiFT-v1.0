@@ -240,11 +240,11 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete RSA-encrypted key reveived')
 
 		# decrypt RSA-encrypted key using server's private key
-		aes_key = dec(enc_temp_key)
+		temp_aes_key = dec(enc_temp_key)
 
 		# check mac value of payload and decrypt
 		nonce = self.msg_sqn + self.msg_hdr_rsv
-		AE = AES.new(aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+		AE = AES.new(temp_aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 
 		try:
