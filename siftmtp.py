@@ -47,6 +47,7 @@ class SiFT_MTP:
 		self.msg_sqn = b'\x00'
 
 		self.aes_key = None
+        self.temp_aes_key = None   # TODO: Check if OK with @trinity...
 
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -126,10 +127,19 @@ class SiFT_MTP:
 
 		if len(msg_body) != msg_len - self.size_msg_hdr:
 			raise SiFT_MTP_Error('Incomplete message body reveived')
+            
+         # check if message type is a login response and use the temp_aes_key for encryption if so
+         key = None
+         if (parsed_msg_hdr['typ'] == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
+             key = self.temp_aes_key
+         elif self.aes_key is not None:
+             key = self.aes_key
+         else:
+ 			raise SiFT_MTP_Error('Unable to send encrypted message as key does not exist')
 
 		# Check mac value of payload and decrypt
 		nonce = self.msg_sqn + self.msg_hdr_rsv
-		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+		AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 
 		#TODO: Not sure if this sequencing is correct...check with @trinity
@@ -163,10 +173,19 @@ class SiFT_MTP:
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hdr_rsv
+        
+        # check if message type is a login response and use the temp_aes_key for encryption if so
+        key = None
+        if (msg_type == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
+            key = self.temp_aes_key
+        elif self.aes_key is not None:
+            key = self.aes_key
+        else:
+			raise SiFT_MTP_Error('Unable to send encrypted message as key does not exist')
 
 		# encrypt payload and compute mac
 		nonce = self.msg_sqn + msg_hdr_rnd
-		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+		AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 		encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
 
@@ -240,11 +259,11 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete RSA-encrypted key reveived')
 
 		# decrypt RSA-encrypted key using server's private key
-		temp_aes_key = dec(enc_temp_key)
+		self.temp_aes_key = self.dec_rsa(enc_temp_key)
 
 		# check mac value of payload and decrypt
 		nonce = self.msg_sqn + self.msg_hdr_rsv
-		AE = AES.new(temp_aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
+		AE = AES.new(self.temp_aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 
 		try:
@@ -262,7 +281,7 @@ class SiFT_MTP:
 			print('------------------------------------------')
 		# DEBUG
 
-		return payload
+		return self.type_login_req, payload
 
 	#######################################do we need to do something with the sqn here?
 	# builds and sends login requests
@@ -285,7 +304,7 @@ class SiFT_MTP:
 		encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
 
 		# encrypt temporary AES key
-		enc_aes_key = enc_rsa(temp_login_req_key)
+		enc_aes_key = self.enc_rsa(temp_login_req_key)
 
 		# DEBUG
 		if self.DEBUG:
@@ -303,6 +322,7 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 		self.msg_sqn += 1
+        
 
 	# -----------------------------------------------------------------------------------------
 	# RSA Key Pair Generation for sending/recieving login requests/responses
@@ -336,7 +356,7 @@ class SiFT_MTP:
 	# TODO: Add try-catch blocks for if file is not in current directory
 	def enc_rsa(self, temp_AES_key):
 		# load the public key from the public key file and create an RSA cipher object
-		pubkey = load_publickey()
+		pubkey = self.load_publickey()
 		RSAcipher = PKCS1_OAEP.new(pubkey)
 
 		# encrypt the AES key with the RSA cipher
@@ -349,7 +369,7 @@ class SiFT_MTP:
 	def dec_rsa(self, encaeskey):
 
 		# load the private key from the private key file and create the RSA cipher object
-		keypair = load_keypair()
+		keypair = self.load_keypair()
 		RSAcipher = PKCS1_OAEP.new(keypair)
 
 		# decrypt the AES key and create the AES cipher object
