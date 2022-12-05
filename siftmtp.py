@@ -47,7 +47,7 @@ class SiFT_MTP:
 		self.msg_sqn = b'\x00'
 
 		self.aes_key = None
-        self.temp_aes_key = None   # TODO: Check if OK with @trinity...
+		self.temp_aes_key = None   # TODO: Check if OK with @trinity...
 
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -127,14 +127,14 @@ class SiFT_MTP:
 
 		if len(msg_body) != msg_len - self.size_msg_hdr:
 			raise SiFT_MTP_Error('Incomplete message body reveived')
-            
-         # check if message type is a login response and use the temp_aes_key for encryption if so
-         key = None
-         if (parsed_msg_hdr['typ'] == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
-             key = self.temp_aes_key
-         elif self.aes_key is not None:
-             key = self.aes_key
-         else:
+			
+		 # check if message type is a login response and use the temp_aes_key for encryption if so
+		key = None
+		if (parsed_msg_hdr['typ'] == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
+			key = self.temp_aes_key
+		elif self.aes_key is not None:
+			key = self.aes_key
+		else:
  			raise SiFT_MTP_Error('Unable to send encrypted message as key does not exist')
 
 		# Check mac value of payload and decrypt
@@ -173,14 +173,14 @@ class SiFT_MTP:
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hdr_rsv
-        
-        # check if message type is a login response and use the temp_aes_key for encryption if so
-        key = None
-        if (msg_type == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
-            key = self.temp_aes_key
-        elif self.aes_key is not None:
-            key = self.aes_key
-        else:
+		
+		# check if message type is a login response and use the temp_aes_key for encryption if so
+		key = None
+		if (msg_type == self.type_login_res) and (self.aes_key is None) and (self.temp_aes_key is not None):
+			key = self.temp_aes_key
+		elif self.aes_key is not None:
+			key = self.aes_key
+		else:
 			raise SiFT_MTP_Error('Unable to send encrypted message as key does not exist')
 
 		# encrypt payload and compute mac
@@ -322,7 +322,7 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 		self.msg_sqn += 1
-        
+		
 
 	# -----------------------------------------------------------------------------------------
 	# RSA Key Pair Generation for sending/recieving login requests/responses
