@@ -3,6 +3,7 @@
 import time
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2, HKDF
+from Crypto import Random
 from siftmtp import SiFT_MTP, SiFT_MTP_Error
 
 
