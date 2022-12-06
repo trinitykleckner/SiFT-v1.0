@@ -147,7 +147,7 @@ class SiFT_LOGIN:
 
 		# building a login request
 		login_req_struct = {}
-		login_req_struct['timeStamp'] = str(time.time_ns())
+		login_req_struct['timestamp'] = str(time.time_ns())
 		login_req_struct['username'] = username
 		login_req_struct['password'] = password
 		login_req_struct['client_random'] = Random.get_random_bytes(16).decode(self.coding)
