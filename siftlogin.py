@@ -1,6 +1,7 @@
 #python3
 
 import time
+import secrets
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2, HKDF
 from Crypto import Random
@@ -64,6 +65,7 @@ class SiFT_LOGIN:
 		login_res_fields = login_res.decode(self.coding).split(self.delimiter)
 		login_res_struct = {}
 		login_res_struct['request_hash'] = bytes.fromhex(login_res_fields[0])
+		login_res_struct['server_random'] = login_res_fields[1]
 		return login_res_struct
 
 
@@ -118,7 +120,7 @@ class SiFT_LOGIN:
 		# building login response
 		login_res_struct = {}
 		login_res_struct['request_hash'] = request_hash
-		login_res_struct['server_random'] = Random.get_random_bytes(16).decode(self.coding)
+		login_res_struct['server_random'] = secrets.token_hex(16)
 		msg_payload = self.build_login_res(login_res_struct)
 
 		# DEBUG 
@@ -138,6 +140,11 @@ class SiFT_LOGIN:
 		if self.DEBUG:
 			print('User ' + login_req_struct['username'] + ' logged in')
 		# DEBUG 
+        
+        # update AES key used for future communication from temporary to master key (from server side)
+		master = login_req_struct['client_random'].encode(self.coding) + login_res_struct['server_random'].encode(self.coding) 
+		master_key = HKDF(master, 32, request_hash, SHA256)
+		self.mtp.aes_key = master_key
 
 		return login_req_struct['username']
 
@@ -150,7 +157,7 @@ class SiFT_LOGIN:
 		login_req_struct['timestamp'] = str(time.time_ns())
 		login_req_struct['username'] = username
 		login_req_struct['password'] = password
-		login_req_struct['client_random'] = Random.get_random_bytes(16).decode(self.coding) 
+		login_req_struct['client_random'] = secrets.token_hex(16)
 		msg_payload = self.build_login_req(login_req_struct)
 
 		# DEBUG 
@@ -194,13 +201,9 @@ class SiFT_LOGIN:
 		if login_res_struct['request_hash'] != request_hash:
 			raise SiFT_LOGIN_Error('Verification of login response failed')
 			
-		# compute aes key to be used for all future transactions
-		# TODO: check with @trinity if it makes sense to have an mtp.aes_key field for both client and server,
-		#       or if we should have separate fields
+        # update AES key used for future communication from temporary to master key (from client side)
 		master = login_req_struct['client_random'].encode(self.coding) + login_res_struct['server_random'].encode(self.coding) 
 		master_key = HKDF(master, 32, request_hash, SHA256)
-		
-		# Update MTP protocol entity to use for all future transactions
 		self.mtp.aes_key = master_key
 		
 
