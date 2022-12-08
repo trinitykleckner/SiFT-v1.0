@@ -273,11 +273,11 @@ class SiFT_CMD:
 
     # builds and sends command to server (to be used by the client)
     def send_command(self, cmd_req_struct):
-        print("in send_command ", cmd_req_struct)
+        # print("in send_command ", cmd_req_struct)
 
         # building a command request
         msg_payload = self.build_command_req(cmd_req_struct)
-        print("message payload", msg_payload)
+        # print("message payload", msg_payload)
 
         # DEBUG
         if self.DEBUG:
@@ -315,9 +315,9 @@ class SiFT_CMD:
 
         # processing command response
         try:
-            print(msg_payload)
+            # print(msg_payload)
             cmd_res_struct = self.parse_command_res(msg_payload)
-            print(cmd_res_struct)
+            # print(cmd_res_struct)
         except:
             raise SiFT_CMD_Error('Parsing command response failed')
 
@@ -359,7 +359,7 @@ class SiFT_CMD:
         elif cmd_req_struct['command'] == self.cmd_lst:
             path = self.server_rootdir + self.user_rootdir + '/'.join(self.current_dir)
             print("HERE: ",path)
-            if os.path.exists(path): #ls isnt getting into this if... 
+            if os.path.exists(path): 
                 dirlist_str = ''
                 with os.scandir(path) as dirlist:
                     for f in dirlist:
