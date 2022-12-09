@@ -20,6 +20,7 @@ class SiFT_LOGIN:
 		# --------- CONSTANTS ------------
 		self.delimiter = '\n'
 		self.coding = 'utf-8'
+		self.acceptance_window = 2000000000
 		# --------- STATE ------------
 		self.mtp = mtp
 		self.server_users = None 
@@ -107,7 +108,7 @@ class SiFT_LOGIN:
 		login_req_struct = self.parse_login_req(msg_payload)
 		
 		# checking if time stamp of login request occurred within acceptable time range
-		if (abs(time.time_ns() - int(login_req_struct['timestamp'])) > 1000000000):
+		if (abs(time.time_ns() - int(login_req_struct['timestamp'])) > self.acceptance_window):
 			raise SiFT_LOGIN_Error('Login request received too early or too late')
 
 		# checking username and password

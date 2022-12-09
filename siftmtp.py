@@ -326,7 +326,7 @@ class SiFT_MTP:
 
 	# loads the server's public key from the file `pubkey.pem` residing in the current directory
 	def load_publickey(self):
-		pubkeyfile = 'SiFTServerPublicKey.pem'
+		pubkeyfile = 'pubkey.pem'
 		with open(pubkeyfile, 'rb') as f:
 			pubkeystr = f.read()
 		try:

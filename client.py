@@ -9,8 +9,8 @@ from siftupl import SiFT_UPL, SiFT_UPL_Error
 from siftdnl import SiFT_DNL, SiFT_DNL_Error
 
 # ----------- CONFIG -------------
-server_ip = '127.0.0.1' # localhost
-# server_ip = '192.168.1.89'
+#server_ip = '127.0.0.1' # localhost
+server_ip = '192.168.20.228'
 server_port = 5150
 # --------------------------------
 
