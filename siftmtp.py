@@ -66,18 +66,21 @@ class SiFT_MTP:
 
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
+		print(n)
 
 		bytes_received = b''
 		bytes_count = 0
 		while bytes_count < n:
 			try:
 				chunk = self.peer_socket.recv(n-bytes_count)
+				print(chunk)
 			except:
 				raise SiFT_MTP_Error('Unable to receive via peer socket')
 			if not chunk:
 				raise SiFT_MTP_Error('Connection with peer is broken')
 			bytes_received += chunk
 			bytes_count += len(chunk)
+			print("bytes received, ", bytes_received)
 		return bytes_received
 
 
@@ -116,7 +119,8 @@ class SiFT_MTP:
             
 		# determine server receiving client request or client receiving server response to check appropriate sequence number
 		thissqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder='big')
-		if thissqn<=int.from_bytes(self.msg_sqn, byteorder='big'):
+		print("thissqn: ",thissqn)
+		if thissqn < int.from_bytes(self.msg_sqn, byteorder='big'):
 			raise SiFT_MTP_Error("Error: Message sequence number is too old!")
             
         # update the server sequence number
@@ -126,6 +130,7 @@ class SiFT_MTP:
 
 		# receive the bytes of the (encrypted) payload and the mac
 		try:
+			print("line 130 in mtp, ", parsed_msg_hdr)
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
@@ -150,7 +155,7 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message received (' + str(msg_len) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_body)) + '): ')
+			print('BDY (' + str(len(msg_body)) + '): ' + msg_body.hex())
 			print('Sequence number after receiving message: ', self.msg_sqn)
 			print(msg_body.hex())
 			print('------------------------------------------')
@@ -222,7 +227,7 @@ class SiFT_MTP:
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
 		thissqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder='big')
-		if thissqn <= int.from_bytes(self.msg_sqn, byteorder='big'):
+		if thissqn < int.from_bytes(self.msg_sqn, byteorder='big'):
 			raise SiFT_MTP_Error("Error: Message sequence number is too old!")
             
         # update the server sequence number

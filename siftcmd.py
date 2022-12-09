@@ -28,8 +28,8 @@ class SiFT_CMD:
         self.cmd_del = 'del'
         self.cmd_upl = 'upl'
         self.cmd_dnl = 'dnl'
-        self.commands = (self.cmd_pwd, self.cmd_lst, self.cmd_chd,
-                         self.cmd_mkd, self.cmd_del,
+        self.commands = (self.cmd_pwd, self.cmd_lst, self.cmd_chd, 
+                         self.cmd_mkd, self.cmd_del, 
                          self.cmd_upl, self.cmd_dnl)
         self.res_success = 'success'
         self.res_failure = 'failure'
@@ -51,10 +51,10 @@ class SiFT_CMD:
     # sets the root directory of the user (to be used by the server)
     def set_user_rootdir(self, user_rootdir):
         self.user_rootdir = user_rootdir
-        # DEBUG
+        # DEBUG 
         if self.DEBUG:
             print('User root directory is set to ' + self.user_rootdir)
-        # DEBUG
+        # DEBUG 
 
     # sets file size limit for uploads
     def set_filesize_limit(self, limit):
@@ -62,7 +62,6 @@ class SiFT_CMD:
 
     # builds a command request from a dictionary
     def build_command_req(self, cmd_req_struct):
-        print("in build_command_req ", cmd_req_struct)
 
         cmd_req_str = cmd_req_struct['command']
 
@@ -88,8 +87,8 @@ class SiFT_CMD:
 
     # parses a command request into a dictionary
     def parse_command_req(self, cmd_req):
+
         cmd_req_fields = cmd_req.decode(self.coding).split(self.delimiter)
-        print("in parse commannd req ", cmd_req_fields)
 
         cmd_req_struct = {}
         cmd_req_struct['command'] = cmd_req_fields[0]
@@ -160,7 +159,7 @@ class SiFT_CMD:
     def parse_command_res(self, cmd_res):
 
         cmd_res_fields = cmd_res.decode(self.coding).split(self.delimiter)
-
+        
         cmd_res_struct = {}
         cmd_res_struct['command'] = cmd_res_fields[0]
         cmd_res_struct['request_hash'] = bytes.fromhex(cmd_res_fields[1])
@@ -213,12 +212,12 @@ class SiFT_CMD:
         except SiFT_MTP_Error as e:
             raise SiFT_CMD_Error('Unable to receive command request --> ' + e.err_msg)
 
-        # DEBUG
+        # DEBUG 
         if self.DEBUG:
             print('Incoming payload (' + str(len(msg_payload)) + '):')
             print(msg_payload[:max(512, len(msg_payload))].decode('utf-8'))
             print('------------------------------------------')
-        # DEBUG
+        # DEBUG 
 
         if msg_type != self.mtp.type_command_req:
             raise SiFT_CMD_Error('Command request expected, but received something else')
@@ -243,12 +242,12 @@ class SiFT_CMD:
         # building a command response
         msg_payload = self.build_command_res(cmd_res_struct)
 
-        # DEBUG
+        # DEBUG 
         if self.DEBUG:
             print('Outgoing payload (' + str(len(msg_payload)) + '):')
             print(msg_payload[:max(512, len(msg_payload))].decode('utf-8'))
             print('------------------------------------------')
-        # DEBUG
+        # DEBUG 
 
         # trying to send command response
         try:
@@ -273,18 +272,16 @@ class SiFT_CMD:
 
     # builds and sends command to server (to be used by the client)
     def send_command(self, cmd_req_struct):
-        # print("in send_command ", cmd_req_struct)
 
         # building a command request
         msg_payload = self.build_command_req(cmd_req_struct)
-        # print("message payload", msg_payload)
 
-        # DEBUG
+        # DEBUG 
         if self.DEBUG:
             print('Outgoing payload (' + str(len(msg_payload)) + '):')
             print(msg_payload[:max(512, len(msg_payload))].decode('utf-8'))
             print('------------------------------------------')
-        # DEBUG
+        # DEBUG 
 
         # trying to send command request
         try:
@@ -303,21 +300,19 @@ class SiFT_CMD:
         except SiFT_MTP_Error as e:
             raise SiFT_CMD_Error('Unable to receive command response --> ' + e.err_msg)
 
-        # DEBUG
+        # DEBUG 
         if self.DEBUG:
             print('Incoming payload (' + str(len(msg_payload)) + '):')
             print(msg_payload[:max(512, len(msg_payload))].decode('utf-8'))
             print('------------------------------------------')
-        # DEBUG
+        # DEBUG 
 
         if msg_type != self.mtp.type_command_res:
             raise SiFT_CMD_Error('Command response expected, but received something else')
 
         # processing command response
         try:
-            # print(msg_payload)
             cmd_res_struct = self.parse_command_res(msg_payload)
-            # print(cmd_res_struct)
         except:
             raise SiFT_CMD_Error('Parsing command response failed')
 
@@ -344,7 +339,6 @@ class SiFT_CMD:
 
     # execute command
     def exec_cmd(self, cmd_req_struct, request_hash):
-        print("in exec_cmd ", cmd_req_struct)
 
         cmd_res_struct = {}
         cmd_res_struct['command'] = cmd_req_struct['command']
@@ -358,8 +352,7 @@ class SiFT_CMD:
         # lst
         elif cmd_req_struct['command'] == self.cmd_lst:
             path = self.server_rootdir + self.user_rootdir + '/'.join(self.current_dir)
-            print("HERE: ",path)
-            if os.path.exists(path): 
+            if os.path.exists(path):
                 dirlist_str = ''
                 with os.scandir(path) as dirlist:
                     for f in dirlist:
@@ -385,7 +378,7 @@ class SiFT_CMD:
                     if not os.path.exists(path):
                         cmd_res_struct['result_1'] = self.res_failure
                         cmd_res_struct['result_2'] = 'Directory does not exist'
-                    else:
+                    else:                    
                         self.current_dir = self.current_dir[:-1]
                         cmd_res_struct['result_1'] = self.res_success
             else:
@@ -399,7 +392,7 @@ class SiFT_CMD:
                     if not os.path.exists(path):
                         cmd_res_struct['result_1'] = self.res_failure
                         cmd_res_struct['result_2'] = 'Directory does not exist'
-                    else:
+                    else:                    
                         self.current_dir.append(dirname)
                         cmd_res_struct['result_1'] = self.res_success
 
@@ -421,7 +414,7 @@ class SiFT_CMD:
                         os.mkdir(path)
                     except:
                         cmd_res_struct['result_1'] = self.res_failure
-                        cmd_res_struct['result_2'] = 'Creating directory failed'
+                        cmd_res_struct['result_2'] = 'Creating directory failed'                    
                     else:
                         cmd_res_struct['result_1'] = self.res_success
 
@@ -444,7 +437,7 @@ class SiFT_CMD:
                             os.rmdir(path)
                         except:
                             cmd_res_struct['result_1'] = self.res_failure
-                            cmd_res_struct['result_2'] = 'Removing directory failed'
+                            cmd_res_struct['result_2'] = 'Removing directory failed'                    
                         else:
                             cmd_res_struct['result_1'] = self.res_success
                     elif os.path.isfile(path): # remove file
@@ -452,19 +445,21 @@ class SiFT_CMD:
                             os.remove(path)
                         except:
                             cmd_res_struct['result_1'] = self.res_failure
-                            cmd_res_struct['result_2'] = 'Removing file failed'
+                            cmd_res_struct['result_2'] = 'Removing file failed'                    
                         else:
                             cmd_res_struct['result_1'] = self.res_success
                     else:
                         cmd_res_struct['result_1'] = self.res_failure
-                        cmd_res_struct['result_2'] = 'Object is not a file or directory'
+                        cmd_res_struct['result_2'] = 'Object is not a file or directory'                    
 
         # upl
         elif cmd_req_struct['command'] == self.cmd_upl:
-            # DONE
-            # TODO- : Implement the handling of the upl command here...
+            #cmd_res_struct['result_1'] = self.res_reject
+            #cmd_res_struct['result_2'] = 'Upload is not yet supported'
+
+            # TODO: Implement the handling of the upl command here...
             # HINTS:
-            #   - take the filename, filesize, and filehash from the command parameter fields
+            #   - take the filename, filesize, and filehash from the command parameter fields 
             #     param_1, param_2, and param_3, respectively
             #   - check that the filename is not empty, does not start with . and does not
             #     contain unsupported characters (use self.check_fdname())
@@ -475,21 +470,22 @@ class SiFT_CMD:
             filename = cmd_req_struct['param_1']
             filesize = cmd_req_struct['param_2']
             filehash = cmd_req_struct['param_3']
-
             if not self.check_fdname(filename):
                 cmd_res_struct['result_1'] = self.res_reject
-                cmd_res_struct['result_2'] = 'Filename is either empty, contains special characters, or starts with .'
+                cmd_res_struct['result_2'] = 'File name is empty, starts with . or contains unsupported characters'
             else:
                 if filesize > self.filesize_limit:
                     cmd_res_struct['result_1'] = self.res_reject
-                    cmd_res_struct['result_2'] = 'The file is to large to be uploaded'
-                else:
+                    cmd_res_struct['result_2'] = 'File to be uploaded is too large'
+                # elif ...: # potentially checking the filehash e.g., against a blacklist
+                else:    
                     cmd_res_struct['result_1'] = self.res_accept
-
 
         # dnl
         elif cmd_req_struct['command'] == self.cmd_dnl:
-            # DONE i think
+            #cmd_res_struct['result_1'] = self.res_reject
+            #cmd_res_struct['result_2'] = 'Download is not yet supported'
+
             # TODO: Implement the handling of the dnl command here...
             # HINTS:
             #   - take the filename from the command parameter field param_1
@@ -498,90 +494,106 @@ class SiFT_CMD:
             #   - check that the filename actually refers to an existing file (and not a directory)
             #   - compute the SHA-256 hash of the file content and determine the size of the file (in bytes)
             #     (for the hashing, open the file, read its content, and hash it)
-            #   - if all checks were successful, then fill in the fields of the response structure
+            #   - if all checks were successful, then fill in the fields of the response structure 
             #     with the size and the hash, and respond with 'accept'
             #   - otherwise the response should be 'reject' with an appropriate error message
 
             filename = cmd_req_struct['param_1']
             if not self.check_fdname(filename):
-                cmd_res_struct['result_1'] = self.res_failure
-                cmd_res_struct['result_2'] = 'Filename is either empty, contains special characters, or starts with .'
+                cmd_res_struct['result_1'] = self.res_reject
+                cmd_res_struct['result_2'] = 'File name is empty, starts with . or contains unsupported characters'
             else:
                 path = self.server_rootdir + self.user_rootdir + '/'.join(self.current_dir)
-                if path[-1] == '/': path += filename
-                else: path += '/' + filename
-                if not os.path.exists(path):
+                if path[-1] == '/': filepath = path + filename
+                else: filepath = path + '/' + filename
+                if not os.path.exists(filepath):
                     cmd_res_struct['result_1'] = self.res_reject
                     cmd_res_struct['result_2'] = 'File or directory does not exist'
                 else:
-                    hash_fn = SHA256.new()
-                    file = open(path, "rb")
-                    byte_count = 1024
-                    filesize = 0
-                    while byte_count == 1024:
-                        chunk = file.read(1024)
-                        byte_count = len(chunk)
-                        filesize += byte_count
-                        hash_fn.update(chunk)
-                    filehash = hash_fn.digest()
-                    cmd_res_struct['result_1'] = self.res_accept
-                    cmd_res_struct['result_2'] = filesize
-                    cmd_res_struct['result_3'] = filehash
-
+                    if not os.path.isfile(filepath): # not a file
+                        cmd_res_struct['result_1'] = self.res_reject
+                        cmd_res_struct['result_2'] = 'Only file download is supported'
+                    else:
+                        with open(filepath, 'rb') as f:
+                            hash_fn = SHA256.new()
+                            file_size = 0
+                            byte_count = 1024
+                            while byte_count == 1024:
+                                chunk = f.read(1024)
+                                byte_count = len(chunk)
+                                file_size += byte_count
+                                hash_fn.update(chunk)
+                            file_hash = hash_fn.digest()
+                        cmd_res_struct['result_1'] = self.res_accept
+                        cmd_res_struct['result_2'] = file_size
+                        cmd_res_struct['result_3'] = file_hash
 
         return cmd_res_struct
 
 
     # execute upload
     def exec_upl(self, filename):
-        # DONE (I think)
+        #pass
+
         # TODO: remove pass above and implement the upload operation here
         # HINTS:
         #   - check that the filename is not empty, does not start with . and does not
         #     contain unsupported characters (use self.check_fdname())
-        #   - create an instance of the Upload Protocol class (SiFT_UPL), and use it to handle
+        #   - create an instance of the Upload Protocol class (SiFT_UPL), and use it to handle 
         #     the file upload
         #   - you should pass self.mtp to the constructor of SiFT_UPL
-        #   - you may pass the filename or the filepath where the uploaded file should be saved
+        #   - you may pass the filename or the filepath where the uploaded file should be saved 
         #     to the created Uoload Protocol object (instance of SiFT_UPL)
         #   - handle potential errors as needed...
 
         if not self.check_fdname(filename):
-            raise SiFT_UPL_Error('Filename is either empty, contains special characters, or starts with .')
+            raise SiFT_DNL_Error('File name is empty, starts with . or contains unsupported characters')
         else:
             path = self.server_rootdir + self.user_rootdir + '/'.join(self.current_dir)
-            if path[-1] == '/': path += filename
-            else: path += '/' + filename
-            upl_protocol = SiFT_UPL(self.mtp)
-            upl_protocol.handle_upload_server(path)
+            if not os.path.exists(path):
+                raise SiFT_UPL_Error('Operation failed due to local error on server')
+            else:    
+                if path[-1] == '/': filepath = path + filename
+                else: filepath = path + '/' + filename
+                # We could check here if a file with the given name already exists!
+                uplp = SiFT_UPL(self.mtp)
+                try:
+                    uplp.handle_upload_server(filepath)
+                except SiFT_UPL_Error as e:
+                    raise SiFT_UPL_Error(e.err_msg)
 
 
     # execute download
     def exec_dnl(self, filename):
-        # DONE (I think)
+        #pass
+
         # TODO: remove pass above and implement the download operation here
         # HINTS:
         #   - check that the filename is not empty, does not start with . and does not
         #     contain unsupported characters (use self.check_fdname())
         #   - locate the object referred by the filename and check that it
         #     actually exists and it is not a directory
-        #   - create an instance of the Download Protocol class (SiFT_DNL), and use it to handle
+        #   - create an instance of the Download Protocol class (SiFT_DNL), and use it to handle 
         #     the file download
         #   - you should pass self.mtp to the constructor of SiFT_DNL
-        #   - you may pass the filename or the filepath of the file to be downloaded to the
+        #   - you may pass the filename or the filepath of the file to be downloaded to the  
         #     created Download Protocol object (instance of SiFT_DNL)
         #   - handle potential errors as needed...
 
         if not self.check_fdname(filename):
-            raise SiFT_DNL_Error('Filename is either empty, contains special characters, or starts with .')
+            raise SiFT_DNL_Error('File name is empty, starts with . or contains unsupported characters')
         else:
             path = self.server_rootdir + self.user_rootdir + '/'.join(self.current_dir)
-            if path[-1] == '/': path += filename
-            else: path += '/' + filename
-            if not os.path.exists(path):
-                raise SiFT_DNL_Error('Filepath does not exist')
-            elif not os.path.isfile(path):
-                raise SiFT_DNL_Error('Filepath must lead to a file, not a directory')
+            if path[-1] == '/': filepath = path + filename
+            else: filepath = path + '/' + filename
+            if not os.path.exists(filepath):
+                raise SiFT_DNL_Error('File or directory does not exist')
             else:
-                dnl_protocol = SiFT_DNL(self.mtp)
-                dnl_protocol.handle_download_server(path)
+                if not os.path.isfile(filepath): # not a file
+                    raise SiFT_DNL_Error('Only file download is supported')
+                else:
+                    dnlp = SiFT_DNL(self.mtp)
+                    try:
+                        dnlp.handle_download_server(filepath)
+                    except SiFT_DNL_Error as e:
+                        raise SiFT_DNL_Error(e.err_msg)

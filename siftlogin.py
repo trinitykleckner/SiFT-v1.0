@@ -143,7 +143,7 @@ class SiFT_LOGIN:
 		# DEBUG 
         
         # update AES key used for future communication from temporary to master key (from server side)
-		master = login_req_struct['client_random'].encode(self.coding) + login_res_struct['server_random'].encode(self.coding) 
+		master = bytes.fromhex(login_req_struct['client_random']) + bytes.fromhex(login_res_struct['server_random'])
 		master_key = HKDF(master, 32, request_hash, SHA256)
 		self.mtp.aes_key = master_key
 
@@ -203,8 +203,7 @@ class SiFT_LOGIN:
 			raise SiFT_LOGIN_Error('Verification of login response failed')
 			
         # update AES key used for future communication from temporary to master key (from client side)
-		master = login_req_struct['client_random'].encode(self.coding) + login_res_struct['server_random'].encode(self.coding) 
+		
+		master = bytes.fromhex(login_req_struct['client_random']) + bytes.fromhex(login_res_struct['server_random'])
 		master_key = HKDF(master, 32, request_hash, SHA256)
 		self.mtp.aes_key = master_key
-		
-
