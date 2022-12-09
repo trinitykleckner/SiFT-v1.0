@@ -5,6 +5,8 @@ from Crypto.Hash import SHA256
 from siftmtp import SiFT_MTP, SiFT_MTP_Error
 from siftlogin import SiFT_LOGIN, SiFT_LOGIN_Error
 from siftcmd import SiFT_CMD, SiFT_CMD_Error
+from siftupl import SiFT_UPL, SiFT_UPL_Error
+from siftdnl import SiFT_DNL, SiFT_DNL_Error
 
 # ----------- CONFIG -------------
 server_ip = '127.0.0.1' # localhost
@@ -142,7 +144,7 @@ class SiFTShell(cmd.Cmd):
                     
                     # Dunno where the hell mtp is
                     instance = SiFT_UPL(mtp)
-                    instance.handle_upload_client()
+                    instance.handle_upload_client(filepath)
                     
                     #example_upload_res = example.build_upload_res(cmd_res_struct)
                     #parse_upload_res(example_upload_res)

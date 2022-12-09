@@ -6,8 +6,8 @@ from Crypto.Hash import SHA256
 from siftmtp import SiFT_MTP, SiFT_MTP_Error
 # TODO: When the appropriate classes for the Upload and Download Protocols
 #       are created, un-comment the lines below
-#from siftupl import SiFT_UPL, SiFT_UPL_Error
-#from siftdnl import SiFT_DNL, SiFT_DNL_Error
+from siftupl import SiFT_UPL, SiFT_UPL_Error
+from siftdnl import SiFT_DNL, SiFT_DNL_Error
 
 class SiFT_CMD_Error(Exception):
 
@@ -480,7 +480,7 @@ class SiFT_CMD:
                 cmd_res_struct['result_1'] = self.res_reject
                 cmd_res_struct['result_2'] = 'Filename is either empty, contains special characters, or starts with .'
             else:
-                if filesize > filesize_limit:
+                if filesize > self.filesize_limit:
                     cmd_res_struct['result_1'] = self.res_reject
                     cmd_res_struct['result_2'] = 'The file is to large to be uploaded'
                 else:
@@ -518,8 +518,8 @@ class SiFT_CMD:
                     file = open(path, "rb")
                     byte_count = 1024
                     filesize = 0
-                    while bytes_count == 1024:
-                        chunk = f.read(1024)
+                    while byte_count == 1024:
+                        chunk = file.read(1024)
                         byte_count = len(chunk)
                         filesize += byte_count
                         hash_fn.update(chunk)
@@ -553,7 +553,7 @@ class SiFT_CMD:
             if path[-1] == '/': path += filename
             else: path += '/' + filename
             upl_protocol = SiFT_UPL(self.mtp)
-            upl_protocol.handle_upload_server(filepath)
+            upl_protocol.handle_upload_server(path)
 
 
     # execute download
@@ -580,8 +580,8 @@ class SiFT_CMD:
             else: path += '/' + filename
             if not os.path.exists(path):
                 raise SiFT_DNL_Error('Filepath does not exist')
-            elif not os.path.isfile(filepath):
+            elif not os.path.isfile(path):
                 raise SiFT_DNL_Error('Filepath must lead to a file, not a directory')
             else:
                 dnl_protocol = SiFT_DNL(self.mtp)
-                dnl_protocol.handle_download_server(filepath)
+                dnl_protocol.handle_download_server(path)

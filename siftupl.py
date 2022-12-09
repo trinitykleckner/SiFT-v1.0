@@ -51,7 +51,7 @@ class SiFT_UPL:
         hash_fn = SHA256.new()
 
         while byte_count == self.size_fragment: #what happens when message is exact len
-            chunk = f.read(self.size_fragment)
+            chunk = file.read(self.size_fragment)
             byte_count = len(chunk)
             if byte_count == self.size_fragment:
                 msg_type = self.mtp.type_upload_req_0
@@ -60,7 +60,7 @@ class SiFT_UPL:
 
             hash_fn.update(chunk)
             try:
-                self.mtp.send_msg(msg_type, msg_sqn, chunk)
+                self.mtp.send_msg(msg_type, chunk)
             except:
                 raise SiFT_UPL_Error("Cannot upload file fragment")
 
@@ -90,7 +90,7 @@ class SiFT_UPL:
         msg_type = self.mtp.type_upload_req_0
         hash_fn = SHA256.new()
 
-        while msg_type = self.mtp.type_upload_req_0:
+        while msg_type == self.mtp.type_upload_req_0:
             try:
                 msg_type, msg_payload = self.mtp.receive_msg()
             except:
