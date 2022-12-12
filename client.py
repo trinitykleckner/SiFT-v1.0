@@ -9,8 +9,8 @@ from siftupl import SiFT_UPL, SiFT_UPL_Error
 from siftdnl import SiFT_DNL, SiFT_DNL_Error
 
 # ----------- CONFIG -------------
-#server_ip = '127.0.0.1' # localhost
-server_ip = '192.168.20.228'
+server_ip = '127.0.0.1' # localhost
+#server_ip = '192.168.20.228'
 server_port = 5150
 # --------------------------------
 
@@ -163,6 +163,7 @@ class SiFTShell(cmd.Cmd):
             if cmd_res_struct['result_1'] == cmdp.res_reject:
                 print('Remote_Error: ' + cmd_res_struct['result_2'])
             else:
+                dnlp = SiFT_DNL(mtp)
                 print('File size: ' + str(cmd_res_struct['result_2']))
                 print('File hash: ' + cmd_res_struct['result_3'].hex())
                 yn = ''
@@ -177,8 +178,15 @@ class SiFTShell(cmd.Cmd):
                     #     (pass mtp to the constructor)
                     #   - use the created object to handle the download operation 
                     #   - handle potential errors as needed
-
-                    # print('Completed.')
+                    
+                    try:
+                        file_hash = dnlp.handle_download_client(cmd_req_struct['param_1'])
+                    except SiFT_DNL_Error as e:
+                        print('Remote_Error: ' + e.err_msg)
+                    else:
+                        # we could also check here that file_hash is equal to cmd_res_struct['result_3']
+                        print('Completed.')
+                    
                 else:
                     print('Canceling download...')
 
@@ -190,7 +198,14 @@ class SiFTShell(cmd.Cmd):
                     #   - handle potential errors as needed
 
                     # print('Completed.')
-
+                    
+                    try:
+                        dnlp.cancel_download_client()
+                    except SiFT_DNL_Error as e:
+                        print('Remote_Error: ' + e.err_msg)
+                    else:
+                        print('Completed.')
+                    
     def do_bye(self, arg):
         'Exit from the client shell: bye'
         print('Closing connection with server...')

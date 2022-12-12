@@ -11,7 +11,7 @@ class SiFT_DNL_Error(Exception):
 class SiFT_DNL:
     def __init__(self, mtp):
 
-        self.DEBUG = False
+        self.DEBUG = True
         # --------- CONSTANTS ------------
         self.size_fragment = 1024
         self.coding = 'utf-8'
@@ -142,5 +142,4 @@ class SiFT_DNL:
                         self.mtp.send_msg(msg_type, file_fragment)
                     except SiFT_MTP_Error as e:
                         raise SiFT_DNL_Error('Unable to download file fragment --> ' + e.err_msg)
-
 

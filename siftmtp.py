@@ -16,7 +16,11 @@ class SiFT_MTP:
 	def __init__(self, peer_socket):
 
 		self.DEBUG = True
-		# --------- CONSTANTS ------------
+		# --------- KEY FILES ------------
+		self.pubkeyfile = 'SiFTServerPublicKey.pem'     # Contains the public key of the desired server
+		self.privkeyfile = 'SiFTServerPrivateKey.pem'   # Contains the private key of the server
+		self.passphrase = 'SiFTSecret'                  # The password to activate the server (to access the private key)
+		# --------- CONSTANTS ------------		
 		self.version_major = 1
 		self.version_minor = 0
 		self.mac_len = 12
@@ -46,8 +50,8 @@ class SiFT_MTP:
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
-		self.msg_sqn = b'\x00\x00'                                           
-
+		self.sqn_snd = b'\x00\x00'                                           
+		self.sqn_rec = b'\x00\x00'
 		self.aes_key = None
 
 
@@ -66,21 +70,18 @@ class SiFT_MTP:
 
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
-		print(n)
 
 		bytes_received = b''
 		bytes_count = 0
 		while bytes_count < n:
 			try:
 				chunk = self.peer_socket.recv(n-bytes_count)
-				print(chunk)
 			except:
 				raise SiFT_MTP_Error('Unable to receive via peer socket')
 			if not chunk:
 				raise SiFT_MTP_Error('Connection with peer is broken')
 			bytes_received += chunk
 			bytes_count += len(chunk)
-			print("bytes received, ", bytes_received)
 		return bytes_received
 
 
@@ -119,18 +120,16 @@ class SiFT_MTP:
             
 		# determine server receiving client request or client receiving server response to check appropriate sequence number
 		thissqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder='big')
-		print("thissqn: ",thissqn)
-		if thissqn < int.from_bytes(self.msg_sqn, byteorder='big'):
+		if thissqn <= int.from_bytes(self.sqn_rec, byteorder='big'):
 			raise SiFT_MTP_Error("Error: Message sequence number is too old!")
             
         # update the server sequence number
-		self.msg_sqn = parsed_msg_hdr['sqn']
+		self.sqn_rec = parsed_msg_hdr['sqn']
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
 		# receive the bytes of the (encrypted) payload and the mac
 		try:
-			print("line 130 in mtp, ", parsed_msg_hdr)
 			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
@@ -139,7 +138,7 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
 		# extract encrypted payload and mac from message
-		nonce = self.msg_sqn + parsed_msg_hdr['rnd']
+		nonce = self.sqn_rec + parsed_msg_hdr['rnd']
 		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 		encrypted_msg_payload = msg_body[:-self.mac_len]
@@ -156,8 +155,7 @@ class SiFT_MTP:
 			print('MTP message received (' + str(msg_len) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
 			print('BDY (' + str(len(msg_body)) + '): ' + msg_body.hex())
-			print('Sequence number after receiving message: ', self.msg_sqn)
-			print(msg_body.hex())
+			print('Sequence number after receiving message: ', self.sqn_rec)
 			print('------------------------------------------')
 		# DEBUG
 
@@ -167,19 +165,19 @@ class SiFT_MTP:
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
         
-		# increment sequence number
-		msg_sqn_int = int.from_bytes(self.msg_sqn, byteorder='big')
-		msg_sqn_int += 1
-		self.msg_sqn = msg_sqn_int.to_bytes(length=2, byteorder='big')
+		# increment temporary sequence number
+		sqn_snd_int = int.from_bytes(self.sqn_snd, byteorder='big')
+		sqn_snd_int += 1
+		sqn_snd = sqn_snd_int.to_bytes(length=2, byteorder='big')
 
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload) + self.mac_len
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)        
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hdr_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + sqn_snd + msg_hdr_rnd + self.msg_hdr_rsv
    
 		# encrypt payload and compute mac
-		nonce = self.msg_sqn + msg_hdr_rnd
+		nonce = sqn_snd + msg_hdr_rnd
 		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 		encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
@@ -188,9 +186,8 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print('Sequence number after sending message: ', self.msg_sqn)
-			print(msg_payload.hex())
+			print('BDY (' + str(len(msg_payload)) + '): ' + msg_payload.hex())
+			print('Sequence number after sending message: ', sqn_snd)
 			print('------------------------------------------')
 		# DEBUG
 
@@ -199,6 +196,9 @@ class SiFT_MTP:
 			self.send_bytes(msg_hdr + encrypted_msg_payload + mac)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
+
+		# increment sequence number is sending was sucessful
+		self.sqn_snd = sqn_snd
 
 	# -----------------------------------------------------------------------------------------
 	# MTP protocol for sending/recieving login requests/responses
@@ -227,11 +227,11 @@ class SiFT_MTP:
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
 		thissqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder='big')
-		if thissqn < int.from_bytes(self.msg_sqn, byteorder='big'):
+		if thissqn <= int.from_bytes(self.sqn_rec, byteorder='big'):
 			raise SiFT_MTP_Error("Error: Message sequence number is too old!")
             
         # update the server sequence number
-		self.msg_sqn = parsed_msg_hdr['sqn']
+		self.sqn_rec = parsed_msg_hdr['sqn']
 
 		# receive the bytes of the (encrypted) payload and the mac
 		try:
@@ -258,7 +258,7 @@ class SiFT_MTP:
 		self.aes_key = self.dec_rsa(enc_temp_key)
 
 		# check mac value of payload and decrypt
-		nonce = self.msg_sqn + parsed_msg_hdr['rnd']
+		nonce = self.sqn_rec + parsed_msg_hdr['rnd']
 		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 
@@ -272,9 +272,8 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP login request received (' + str(msg_len) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(encrypted_msg_payload)) + '): ')
-			print('Sequence number after receiving login request: ', self.msg_sqn)
-			print(encrypted_msg_payload.hex())
+			print('BDY (' + str(len(encrypted_msg_payload)) + '): ' + encrypted_msg_payload.hex())
+			print('Sequence number after receiving login request: ', self.sqn_rec)
 			print('------------------------------------------')
 		# DEBUG
 
@@ -284,23 +283,23 @@ class SiFT_MTP:
 	# builds and sends login requests
 	def send_login_req(self, msg_payload):
         
-        # increment sequence number to prepare for sending
-		msg_sqn_int = int.from_bytes(self.msg_sqn, byteorder='big')
-		msg_sqn_int += 1
-		self.msg_sqn = msg_sqn_int.to_bytes(length=2, byteorder='big')
+		# increment temporary sequence number
+		sqn_snd_int = int.from_bytes(self.sqn_snd, byteorder='big')
+		sqn_snd_int += 1
+		sqn_snd = sqn_snd_int.to_bytes(length=2, byteorder='big')
 
 		# build message header
 		msg_size = self.size_msg_hdr + len(msg_payload) + self.mac_len + self.rsa_key_len
 		msg_type = b'\x00\x00'                                                 # the message type for login requests
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + self.msg_sqn + msg_hdr_rnd + self.msg_hdr_rsv
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + sqn_snd + msg_hdr_rnd + self.msg_hdr_rsv
 
 		# generate temporary AES key for encryption of login message payload
 		self.aes_key = Random.get_random_bytes(32)
 
 		# encrypt payload and compute mac
-		nonce = self.msg_sqn + msg_hdr_rnd
+		nonce = sqn_snd + msg_hdr_rnd
 		AE = AES.new(self.aes_key, AES.MODE_GCM, nonce=nonce, mac_len=self.mac_len)
 		AE.update(msg_hdr)
 		encrypted_msg_payload, mac = AE.encrypt_and_digest(msg_payload)
@@ -312,9 +311,8 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP login request to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print('Sequence number after sending login request: ', self.msg_sqn)
-			print(msg_payload.hex())
+			print('BDY (' + str(len(msg_payload)) + '): ' + msg_payload.hex())
+			print('Sequence number after sending login request: ', sqn_snd)
 			print('------------------------------------------')
 		# DEBUG
 
@@ -324,32 +322,31 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 		
+		# increment sequence number is sending was sucessful
+		self.sqn_snd = sqn_snd
 
 	# -----------------------------------------------------------------------------------------
 	# RSA Key Pair Generation for sending/recieving login requests/responses
 	# -----------------------------------------------------------------------------------------
 
 	# loads the server's public key from the file `pubkey.pem` residing in the current directory
-	def load_publickey(self):
-		pubkeyfile = 'pubkey.pem'
-		with open(pubkeyfile, 'rb') as f:
+	def load_publickey(self): 
+		with open(self.pubkeyfile , 'rb') as f:
 			pubkeystr = f.read()
 		try:
 			return RSA.import_key(pubkeystr)
 		except ValueError:
-			print('Error: Cannot import public key from file ' + pubkeyfile)
+			print('Error: Cannot import public key from file ' + self.pubkeyfile)
 			sys.exit(1)
 
 	# loads the server's private key from the file `keypair.pem` residing in the current directory
 	def load_keypair(self):
-		privkeyfile = 'SiFTServerPrivateKey.pem'
-		passphrase = 'SiFTSecret'
-		with open(privkeyfile, 'rb') as f:
+		with open(self.privkeyfile, 'rb') as f:
 			keypairstr = f.read()
 		try:
-			return RSA.import_key(keypairstr, passphrase=passphrase)
+			return RSA.import_key(keypairstr, passphrase=self.passphrase)
 		except ValueError:
-			print('Error: Cannot import private key from file ' + privkeyfile)
+			print('Error: Cannot import private key from file ' + self.privkeyfile)
 			sys.exit(1)
 
 	# encrypts and returns the temporary 32-byte AES key used for encrypting the login request using server's public key
